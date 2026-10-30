@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Lava Parkour - Fixed Controls</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #111;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            font-size: 24px;
+            pointer-events: none;
+            font-weight: bold;
+            z-index: 10;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px;
+            pointer-events: none;
+            user-select: none;
+            z-index: 10;
+        }
+        #menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            cursor: pointer;
+            text-align: center;
+            z-index: 20;
+        }
+        #menu h1 { font-size: 48px; margin-bottom: 10px; color: #ff7675; text-shadow: 0 0 10px #d63031; }
+        #menu p { font-size: 20px; }
+        #reset-btn {
+            margin-top: 25px;
+            padding: 10px 20px;
+            background-color: #d63031;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            pointer-events: auto;
+        }
+        #reset-btn:hover { background-color: #ff7675; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div id="crosshair">+</div>
+    <div id="ui">Poziom: <span id="level-display">1</span></div>
+    
+    <div id="menu">
+        <h1>MINECRAFT LAVA PARKOUR</h1>
+        <p>Kliknij tutaj, aby ROZPOCZĄĆ / WZNOWIĆ grę</p>
+        <p style="font-size: 16px; color: #b2bec3; margin-top: 20px;">Sterowanie: WASD + Myszka | Spacja = Skok</p>
+        <button id="reset-btn" onclick="resetSave(event)">Resetuj zapis (Od nowa)</button>
+    </div>
+
+    <script>
+        let scene, camera, renderer;
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let canJump = false;
+        
+        // Fizyka i wymiary gracza
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        const playerRadius = 0.35;
+        const playerHeight = 1.8;
+        
+        // Stan gry
+        let currentLevel = parseInt(localStorage.getItem('mc_parkour_level')) || 1;
+        let platforms = [];
+        let finishBlock = null;
+        const lavaY = -2.0; 
+        
+        const menu = document.getElementById('menu');
+        const levelDisplay = document.getElementById('level-display');
+
+        // Pointer Lock
+        menu.addEventListener('click', (e) => {
+            if(e.target.id === 'reset-btn') return;
+            document.body.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === document.body) {
+                menu.style.display = 'none';
+            } else {
+                menu.style.display = 'flex';
+            }
+        });
+
+        function resetSave(event) {
+            event.stopPropagation();
+            if(confirm("Czy na pewno chcesz wyczyścić zapis i zacząć od 1 poziomu?")) {
+                localStorage.setItem('mc_parkour_level', 1);
+                currentLevel = 1;
+                levelDisplay.innerText = currentLevel;
+                generateLevel(currentLevel);
+                resetPlayer();
+                alert("Zapis zresetowany!");
+            }
+        }
+
+        // Klawiatura
+        document.addEventListener('keydown', (e) => {
+            switch (e.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'Space': 
+                    if (canJump) {
+                        velocity.y = 11.5; 
+                        canJump = false;
+                    }
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch (e.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyD': moveRight = false; break;
+            }
+        });
+
+        // Myszka
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement !== document.body) return;
+            camera.rotation.y -= e.movementX * 0.0025;
+            camera.rotation.x -= e.movementY * 0.0025;
+            camera.rotation.x = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, camera.rotation.x));
+        });
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a0500); 
+            scene.fog = new THREE.FogExp2(0x1a0500, 0.025);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.rotation.order = 'YXZ';
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xff5500, 0.45);
+            scene.add(ambientLight);
+
+            const topLight = new THREE.DirectionalLight(0xffffff, 0.65);
+            topLight.position.set(5, 50, -5);
+            scene.add(topLight);
+
+            levelDisplay.innerText = currentLevel;
+            generateLevel(currentLevel);
+            resetPlayer();
+
+            window.addEventListener('resize', onWindowResize);
+            animate(0);
+        }
+
+        function generateLevel(level) {
+            platforms.forEach(p => scene.remove(p));
+            platforms = [];
+            if (finishBlock) scene.remove(finishBlock);
+
+            const stoneMat = new THREE.MeshLambertMaterial({ color: 0x444444 }); 
+            const platformMat = new THREE.MeshLambertMaterial({ color: 0x2e86de }); 
+            const goldMat = new THREE.MeshLambertMaterial({ color: 0xf1c40f }); 
+
+            // Start
+            createBlock(0, 0, 0, 3, 1, 3, new THREE.MeshLambertMaterial({ color: 0x78e08f }), 'block');
+
+            let currentX = 0;
+            let currentY = 0;
+            let currentZ = -2;
+            const numberOfJumps = 6 + level; 
+            const tunnelWidth = 8; 
+
+            // Parkour klocki
+            for (let i = 0; i < numberOfJumps; i++) {
+                let distance = 2.8 + Math.random() * 1.3; 
+                let sideShift = (Math.random() - 0.5) * 3.5;
+                let heightShift = (Math.random() - 0.25) * 0.7; 
+
+                currentZ -= distance;
+                currentX += sideShift;
+                currentY += heightShift;
+
+                if (currentX > tunnelWidth/2 - 1.2) currentX = tunnelWidth/2 - 1.2;
+                if (currentX < -tunnelWidth/2 + 1.2) currentX = -tunnelWidth/2 + 1.2;
+
+                let bWidth = Math.random() > 0.6 ? 1 : 1.3;
+                createBlock(currentX, currentY, currentZ, bWidth, 1, 1.2, platformMat, 'block');
+            }
+
+            // Meta
+            currentZ -= 3;
+            finishBlock = createBlock(currentX, currentY, currentZ, 2, 1, 2, goldMat, 'finish');
+
+            // Lawa i ściany boczne
+            let totalLength = Math.abs(currentZ) + 15;
+            let centerZ = currentZ / 2;
+
+            const lavaGeo = new THREE.BoxGeometry(tunnelWidth * 2, 1, totalLength);
+            const lavaMat = new THREE.MeshBasicMaterial({ color: 0xff3300 }); 
+            const lavaMesh = new THREE.Mesh(lavaGeo, lavaMat);
+            lavaMesh.position.set(0, lavaY - 0.5, centerZ);
+            scene.add(lavaMesh);
+            lavaMesh.userData = { type: 'lava', minX: -50, maxX: 50, minY: lavaY - 1, maxY: lavaY, minZ: currentZ - 20, maxZ: 20 };
+            platforms.push(lavaMesh);
+
+            const wallL = createBlock(-tunnelWidth / 2 - 0.5, 10, centerZ, 1, 30, totalLength, stoneMat, 'block');
+            const wallR = createBlock(tunnelWidth / 2 + 0.5, 10, centerZ, 1, 30, totalLength, stoneMat, 'block');
+        }
+
+        function createBlock(x, y, z, w, h, d, material, type) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.position.set(x, y - h/2, z);
+            mesh.receiveShadow = true;
+            mesh.castShadow = true;
+            
+            mesh.userData = {
+                type: type,
+                minX: x - w/2, maxX: x + w/2,
+                minY: y - h,   maxY: y,
+                minZ: z - d/2, maxZ: z + d/2
+            };
+
+            scene.add(mesh);
+            platforms.push(mesh);
+            return mesh;
+        }
+
+        function resetPlayer() {
+            camera.position.set(0, 2, 0); 
+            velocity.set(0, 0, 0);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Silnik kolizji (AABB)
+        function checkCollisions() {
+            let onGround = false;
+            
+            let pMinX = camera.position.x - playerRadius;
+            let pMaxX = camera.position.x + playerRadius;
+            let pMinY = camera.position.y - playerHeight;
+            let pMaxY = camera.position.y;
+            let pMinZ = camera.position.z - playerRadius;
+            let pMaxZ = camera.position.z + playerRadius;
+
+            for (let p of platforms) {
+                let b = p.userData;
+
+                if (pMaxX > b.minX && pMinX < b.maxX &&
+                    pMaxY > b.minY && pMinY < b.maxY &&
+                    pMaxZ > b.minZ && pMinZ < b.maxZ) {
+
+                    if (b.type === 'lava') {
+                        resetPlayer();
+                        return false;
+                    }
+
+                    if (b.type === 'finish') {
+                        currentLevel++;
+                        localStorage.setItem('mc_parkour_level', currentLevel);
+                        levelDisplay.innerText = currentLevel;
+                        generateLevel(currentLevel);
+                        resetPlayer();
+                        return false;
+                    }
+
+                    let overlapX = Math.min(pMaxX - b.minX, b.maxX - pMinX);
+                    let overlapY = Math.min(pMaxY - b.minY, b.maxY - pMinY);
+                    let overlapZ = Math.min(pMaxZ - b.minZ, b.maxZ - pMinZ);
+
+                    if (overlapY < overlapX && overlapY < overlapZ) {
+                        if (velocity.y <= 0 && pMaxY - b.maxY > 0) { 
+                            camera.position.y = b.maxY + playerHeight;
+                            velocity.y = 0;
+                            onGround = true;
+                        } else if (velocity.y > 0 && b.minY - pMinY > 0) { 
+                            camera.position.y = b.minY;
+                            velocity.y = 0;
+                        }
+                    } else if (overlapX < overlapZ) { 
+                        if (camera.position.x < (b.minX + b.maxX)/2) {
+                            camera.position.x -= overlapX;
+                        } else {
+                            camera.position.x += overlapX;
+                        }
+                        velocity.x = 0;
+                    } else { 
+                        if (camera.position.z < (b.minZ + b.maxZ)/2) {
+                            camera.position.z -= overlapZ;
+                        } else {
+                            camera.position.z += overlapZ;
+                        }
+                        velocity.z = 0;
+                    }
+                }
+            }
+            return onGround;
+        }
+
+        let lastTime = 0;
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            let dt = (time - lastTime) / 1000;
+            if (dt > 0.1) dt = 0.1;
+            lastTime = time;
+
+            if (document.pointerLockElement === document.body) {
+                velocity.x -= velocity.x * 10.0 * dt;
+                velocity.z -= velocity.z * 10.0 * dt;
+                velocity.y -= 32.0 * dt; 
+
+                // Zmienione znaki poniżej, żeby A szło w lewo, a D w prawo
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveLeft) - Number(moveRight); 
+                direction.normalize();
+
+                const camRotationY = camera.rotation.y;
+                if (moveForward || moveBackward) {
+                    velocity.z -= direction.z * 45.0 * dt * Math.cos(camRotationY);
+                    velocity.x -= direction.z * 45.0 * dt * Math.sin(camRotationY);
+                }
+                if (moveLeft || moveRight) {
+                    velocity.z -= direction.x * 45.0 * dt * Math.sin(-camRotationY);
+                    velocity.x -= direction.x * 45.0 * dt * Math.cos(-camRotationY);
+                }
+
+                camera.position.x += velocity.x * dt;
+                camera.position.y += velocity.y * dt;
+                camera.position.z += velocity.z * dt;
+
+                let onGround = checkCollisions();
+
+                if (onGround) {
+                    canJump = true;
+                } else {
+                    canJump = false;
+                }
+
+                if (camera.position.y < -15) {
+                    resetPlayer();
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>
