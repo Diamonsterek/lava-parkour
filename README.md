@@ -6,7 +6,6 @@ Gra stworzona w pełni w czystym HTML, JavaScript i CSS. Kod źródłowy jest pu
 1. Pobierz plik html z tego repozytorium.
 2. Kliknij w plik html, aby otworzyć go w dowolnej przeglądarce internetowej.
 3. Gra uruchomi się natychmiast, bez konieczności instalacji czegokolwiek.
-# Można też zagrać w grę na https://lava-parkour.netlify.app/
 
 ## 📜 Licencja
 Projekt jest udostępniony na licencji **CC BY-NC-SA 4.0**. 
