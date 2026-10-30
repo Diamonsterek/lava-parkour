@@ -1,0 +1,12 @@
+Copyright (c) 2026 Diamonsterek
+
+Ten kod źródłowy oraz gra są udostępniane na warunkach licencji:
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
+
+Pełna treść licencji oraz warunki prawne są dostępne pod adresem:
+https://creativecommons.org
+
+Zgodnie z licencją (w prostych słowach):
+1. UZNANIE AUTORSTWA (BY): Każdy, kto korzysta z tego kodu lub go przerabia, musi wyraźnie podać, że nie jest oryginalnym twórcą i musi podać link do tego repozytorium.
+2. UŻYCIE NIEKOMERCYJNE (NC): Nikomu nie wolno zarabiać na tej grze ani na jej zmodyfikowanych wersjach (zakaz sprzedaży, reklam, mikropłatności itp.).
+3. NA TYCH SAMYCH WARUNKACH (SA): Jeśli ktoś przerobi tą grę, jej nowa wersja musi być udostępniona publicznie, całkowicie za darmo i na tej samej licencji (CC BY-NC-SA 4.0).
