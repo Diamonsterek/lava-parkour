@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft Lava Parkour - Fixed Controls</title>
+    <title>lava-parkour</title>
     <style>
         body {
             margin: 0;
@@ -80,10 +80,10 @@
     <div id="ui">Poziom: <span id="level-display">1</span></div>
     
     <div id="menu">
-        <h1>MINECRAFT LAVA PARKOUR</h1>
+        <h1>LAVA PARKOUR</h1>
         <p>Kliknij tutaj, aby ROZPOCZĄĆ / WZNOWIĆ grę</p>
-        <p style="font-size: 16px; color: #b2bec3; margin-top: 20px;">Sterowanie: WASD + Myszka | Spacja = Skok</p>
-        <button id="reset-btn" onclick="resetSave(event)">Resetuj zapis (Od nowa)</button>
+        <p style="font-size: 16px; color: #b2bec3; margin-top: 20px;">Sterowanie: WASD | Myszka | Spacja</p>
+        <button id="reset-btn" onclick="resetSave(event)">Resetuj zapis</button>
     </div>
 
     <script>
@@ -91,13 +91,11 @@
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let canJump = false;
         
-        // Fizyka i wymiary gracza
         let velocity = new THREE.Vector3();
         let direction = new THREE.Vector3();
         const playerRadius = 0.35;
         const playerHeight = 1.8;
         
-        // Stan gry
         let currentLevel = parseInt(localStorage.getItem('mc_parkour_level')) || 1;
         let platforms = [];
         let finishBlock = null;
@@ -106,7 +104,6 @@
         const menu = document.getElementById('menu');
         const levelDisplay = document.getElementById('level-display');
 
-        // Pointer Lock
         menu.addEventListener('click', (e) => {
             if(e.target.id === 'reset-btn') return;
             document.body.requestPointerLock();
@@ -132,7 +129,6 @@
             }
         }
 
-        // Klawiatura
         document.addEventListener('keydown', (e) => {
             switch (e.code) {
                 case 'KeyW': moveForward = true; break;
@@ -157,7 +153,6 @@
             }
         });
 
-        // Myszka
         document.addEventListener('mousemove', (e) => {
             if (document.pointerLockElement !== document.body) return;
             camera.rotation.y -= e.movementX * 0.0025;
@@ -202,7 +197,6 @@
             const platformMat = new THREE.MeshLambertMaterial({ color: 0x2e86de }); 
             const goldMat = new THREE.MeshLambertMaterial({ color: 0xf1c40f }); 
 
-            // Start
             createBlock(0, 0, 0, 3, 1, 3, new THREE.MeshLambertMaterial({ color: 0x78e08f }), 'block');
 
             let currentX = 0;
@@ -211,7 +205,6 @@
             const numberOfJumps = 6 + level; 
             const tunnelWidth = 8; 
 
-            // Parkour klocki
             for (let i = 0; i < numberOfJumps; i++) {
                 let distance = 2.8 + Math.random() * 1.3; 
                 let sideShift = (Math.random() - 0.5) * 3.5;
@@ -228,11 +221,9 @@
                 createBlock(currentX, currentY, currentZ, bWidth, 1, 1.2, platformMat, 'block');
             }
 
-            // Meta
             currentZ -= 3;
             finishBlock = createBlock(currentX, currentY, currentZ, 2, 1, 2, goldMat, 'finish');
 
-            // Lawa i ściany boczne
             let totalLength = Math.abs(currentZ) + 15;
             let centerZ = currentZ / 2;
 
@@ -356,7 +347,6 @@
                 velocity.z -= velocity.z * 10.0 * dt;
                 velocity.y -= 32.0 * dt; 
 
-                // Zmienione znaki poniżej, żeby A szło w lewo, a D w prawo
                 direction.z = Number(moveForward) - Number(moveBackward);
                 direction.x = Number(moveLeft) - Number(moveRight); 
                 direction.normalize();
