@@ -4,7 +4,7 @@ Ten kod źródłowy oraz gra są udostępniane na warunkach licencji:
 Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
 
 Pełna treść licencji oraz warunki prawne są dostępne pod adresem:
-https://creativecommons.org
+https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 Zgodnie z licencją (w prostych słowach):
 1. UZNANIE AUTORSTWA (BY): Każdy, kto korzysta z tego kodu lub go przerabia, musi wyraźnie podać, że nie jest oryginalnym twórcą i musi podać link do tego repozytorium.
